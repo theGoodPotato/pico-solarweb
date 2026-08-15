@@ -1,17 +1,19 @@
-from machine import SoftI2C, Pin
+from machine import SoftI2C, Pin # type: ignore
 import time
 import network
 import urequests
+# from creds import ssid, password, fronius_ip  # Import credentials from creds.py
 
 # configuration
-ssid = 'your_SSID'  # Replace with your Wi-Fi SSID
-password = 'your_PASSWORD'  # Replace with your Wi-Fi password
+# ssid = 'your_SSID'  # Replace with your Wi-Fi SSID
+# password = 'your_PASSWORD'  # Replace with your Wi-Fi password
 fronius_ip = 'fronius_ip'  # Replace with your Fronius inverter IP address
 
 scl = 9
 sda = 8
 lcd_address = 0x3E
-# used functions 
+# used functions and code
+i2c = SoftI2C(scl=Pin(scl), sda=Pin(sda), freq=100000)
 
 def send_cmd(cmd):
     i2c.writeto(lcd_address, bytes([0x80, cmd]))
@@ -39,6 +41,8 @@ for c in [0x38, 0x08, 0x01, 0x06, 0x0C]:
 wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
 wlan.connect(ssid, password)
+
+write_display("Connecting to Wi-Fi", ssid)
 
 while not wlan.isconnected(): # blocks execution until the device is connected to Wi-Fi
     time.sleep(1)
