@@ -1,8 +1,8 @@
 from machine import SoftI2C, Pin # type: ignore
 import time
-import network
+import network # type: ignore
 import urequests
-# from creds import ssid, password, fronius_ip  # Import credentials from creds.py
+from creds import ssid, password, fronius_ip  # Import credentials from creds.py
 
 # configuration
 # ssid = 'your_SSID'  # Replace with your Wi-Fi SSID
@@ -42,7 +42,9 @@ wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
 wlan.connect(ssid, password)
 
-write_display("Connecting to Wi-Fi", ssid)
+write_display("Connecting Wi-Fi", ssid)
 
 while not wlan.isconnected(): # blocks execution until the device is connected to Wi-Fi
     time.sleep(1)
+
+write_display("Wi-Fi Connected", wlan.ifconfig()[0])  # Display the IP address
