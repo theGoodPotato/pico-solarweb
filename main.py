@@ -1,27 +1,38 @@
-from machine import SoftI2C, Pin # type: ignore
+from machine import I2C, Pin # type: ignore
 import time
 import network # type: ignore
 import urequests
 from creds import ssid, password, fronius_ip  # Import credentials from creds.py
+from PiicoDev_SSD1306 import * # type: ignore
 
 # configuration
 # ssid = 'your_SSID'  # Replace with your Wi-Fi SSID
 # password = 'your_PASSWORD'  # Replace with your Wi-Fi password
-fronius_ip = 'fronius_ip'  # Replace with your Fronius inverter IP address
+fronius_ip = '192.168.1.17'  # Replace with your Fronius inverter IP address
 
-scl = 9
-sda = 8
-lcd_address = 0x3E
+lcd = {
+    "scl": 9,
+    "sda": 8,
+    "lcd_address": 0x3E
+}
+
+piicodev = {
+    "sda": 8,
+    "scl": 9,
+    "lcd_address": 0x3C
+}
+
 # used functions and code
-i2c = SoftI2C(scl=Pin(scl), sda=Pin(sda), freq=100000)
+i2cdisplay = I2C(0, scl=Pin(lcd["scl"]), sda=Pin(lcd["sda"]), freq=100000)
+piicodevdisplay = create_PiicoDev_SSD1306(bus=0, freq=400000,scl=Pin(piicodev["scl"]), sda=Pin(piicodev["sda"])) # type: ignore
 
 def send_cmd(cmd):
-    i2c.writeto(lcd_address, bytes([0x80, cmd]))
+    i2cdisplay.writeto(lcd["lcd_address"], bytes([0x80, cmd]))
 
 def send_data(data):
-    i2c.writeto(lcd_address, bytes([0x40, data]))
+    i2cdisplay.writeto(lcd["lcd_address"], bytes([0x40, data]))
 
-def write_display(line1, line2): 
+def write_lcd_display(line1, line2): 
     send_cmd(0x01)  # Clear display
     time.sleep_ms(5)
     send_cmd(0x80)  # Move to line 1
@@ -42,9 +53,17 @@ wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
 wlan.connect(ssid, password)
 
-write_display("Connecting Wi-Fi", ssid)
+write_lcd_display("Connecting Wi-Fi", ssid)
+piicodevdisplay.fill(0)
+piicodevdisplay.text("Connecting Wi-Fi", 0,0, 1)
+piicodevdisplay.text(ssid, 0,10, 1)
+piicodevdisplay.show()
 
 while not wlan.isconnected(): # blocks execution until the device is connected to Wi-Fi
     time.sleep(1)
 
-write_display("Wi-Fi Connected", wlan.ifconfig()[0])  # Display the IP address
+write_lcd_display("Wi-Fi Connected", wlan.ifconfig()[0])  # Display the IP address
+piicodevdisplay.fill(0)
+piicodevdisplay.text("Wi-Fi Connected", 0,0, 1)
+piicodevdisplay.text(wlan.ifconfig()[0], 0,10, 1)
+piicodevdisplay.show()
