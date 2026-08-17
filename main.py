@@ -10,9 +10,9 @@ import time
 # ssid = 'your_SSID'  # Replace with your Wi-Fi SSID
 # password = 'your_PASSWORD'  # Replace with your Wi-Fi password
 fronius_ip = 'http://192.168.1.17'  # Replace with your Fronius inverter IP address
-delay = 2
-battery_voltage_full = 1.2 * 3 # Replace with your COMBINED battery voltage
-battery_voltage_empty = 1 * 3 # Replace with your COMBINED battery voltage when empty
+delay = 5
+battery_voltage_full = 1.4 * 3 # Replace with your COMBINED battery voltage
+battery_voltage_empty = 0 * 3 # Replace with your COMBINED battery voltage when empty
 
 lcd = {
     "scl": 9,
@@ -130,10 +130,8 @@ try:
         time.sleep(delay)
         write_lcd_display("Current V:" + str(get_vsys_voltage()), "USB Power" if get_vsys_voltage() > 4.65 else "Battery Power")
         if get_vsys_voltage() < 4.65: 
-            write_lcd_display("Estimated Percentage", str(((get_vsys_voltage() - battery_voltage_empty) / (battery_voltage_full - battery_voltage_empty)) * 100) + "%")
+            write_lcd_display("B Percentage", str(((get_vsys_voltage() - battery_voltage_empty) / (battery_voltage_full - battery_voltage_empty)) * 100) + "%")
             time.sleep(delay)
-        time.sleep(delay)
-        write_lcd_display("Wi-Fi Connected", ssid)
         time.sleep(delay)
         write_lcd_display("Wi-Fi Connected", wlan.ifconfig()[0])  # Display the IP address
         time.sleep(delay)
@@ -147,10 +145,12 @@ try:
                 "Grid Interaction": str(site_data.get('P_Grid', 0)) + " W",
                 "Consumption": str(site_data.get('P_Load', 0)) + " W",
                 "Self Consumption": str(site_data.get('rel_SelfConsumption', 0)) + "%",
-                "Battery Power": str(site_data.get('P_Akku', 0)) + " W",
+                "S Battery Power": str(site_data.get('P_Akku', 0)) + " W",
                 "Generation Today": str(site_data.get('E_Day', 0)) + " kWh",
             }
             for key, value in dataToDisplay.items(): 
+                if key == "None": 
+                    key = "N/A"
                 write_lcd_display(str(key), str(value))
                 time.sleep(delay)
 except KeyboardInterrupt: 
