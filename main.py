@@ -1,15 +1,18 @@
-from machine import I2C, Pin # type: ignore
+from machine import I2C, Pin, ADC # type: ignore
 import time
 import network # type: ignore
 import urequests
 from creds import ssid, password  # Import credentials from creds.py
 from PiicoDev_SSD1306 import * # type: ignore
+import time
 
 # configuration
 # ssid = 'your_SSID'  # Replace with your Wi-Fi SSID
 # password = 'your_PASSWORD'  # Replace with your Wi-Fi password
 fronius_ip = 'http://192.168.1.17'  # Replace with your Fronius inverter IP address
-inverter_num = 1  # Replace with your inverter number (usually 1)
+delay = 2
+battery_voltage_full = 1.2 * 3 # Replace with your COMBINED battery voltage
+battery_voltage_empty = 1 * 3 # Replace with your COMBINED battery voltage when empty
 
 lcd = {
     "scl": 9,
@@ -72,45 +75,83 @@ def get(url):
 
     return [usable, data]
 
-# startup tasks startup and clearing the display, connecting to wifi
-for c in [0x38, 0x08, 0x01, 0x06, 0x0C]:
-    send_cmd(c)
-    time.sleep_ms(5)
+def get_vsys_voltage():
+    # 1. Enable VSYS sense line (required for Pico W / Pico 2 W)
+    pin25 = Pin(25, Pin.OUT, pull=Pin.PULL_DOWN)
+    pin25.high()
+    
+    # 2. Read ADC channel 3 on GPIO 29
+    Pin(29, Pin.IN)
+    vsys_adc = ADC(3)
+    raw_val = vsys_adc.read_u16()
+    
+    # 3. Restore GPIO 29 for CYW43 Wi-Fi module
+    Pin(29, Pin.ALT, pull=Pin.PULL_DOWN, alt=7)
+    
+    # Convert raw ADC value to voltage across 1:3 divider
+    return (raw_val * 3.3 / 65535) * 3
 
-# connect to Wi-Fi
+try: 
+    # startup tasks startup and clearing the display, connecting to wifi
+    for c in [0x38, 0x08, 0x01, 0x06, 0x0C]:
+        send_cmd(c)
+        time.sleep_ms(5)
 
-wlan = network.WLAN(network.STA_IF)
-wlan.active(True)
-wlan.connect(ssid, password)
+    write_lcd_display("Starting up...", "Please wait")
 
-write_lcd_display("Connecting Wi-Fi", ssid)
-piicodevdisplay.fill(0)
-piicodevdisplay.text("Connecting Wi-Fi", 0,0, 1)
-piicodevdisplay.text(ssid, 0,10, 1)
-piicodevdisplay.show()
+    # connect to Wi-Fi
 
-while not wlan.isconnected(): # blocks execution until the device is connected to Wi-Fi
-    time.sleep(1)
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    wlan.connect(ssid, password)
 
-write_lcd_display("Wi-Fi Connected", wlan.ifconfig()[0])  # Display the IP address
-piicodevdisplay.fill(0)
-piicodevdisplay.text("Wi-Fi Connected", 0,0, 1)
-piicodevdisplay.text(wlan.ifconfig()[0], 0,10, 1)
-piicodevdisplay.show()
+    write_lcd_display("Connecting Wi-Fi", ssid)
+    piicodevdisplay.fill(0)
+    piicodevdisplay.text("Connecting Wi-Fi", 0,0, 1)
+    piicodevdisplay.text(ssid, 0,10, 1)
+    piicodevdisplay.show()
+
+    while not wlan.isconnected(): # blocks execution until the device is connected to Wi-Fi
+        time.sleep(1)
+
+    write_lcd_display("Wi-Fi Connected", wlan.ifconfig()[0])  # Display the IP address
+    piicodevdisplay.fill(0)
+    piicodevdisplay.text("Wi-Fi Connected", 0,0, 1)
+    piicodevdisplay.text(wlan.ifconfig()[0], 0,10, 1)
+    piicodevdisplay.show()
+except: 
+    from picozero import pico_led # type: ignore
+    pico_led.on()
 
 # pinging section
-data = get(fronius_ip + '/solar_api/v1/GetPowerFlowRealtimeData.fcgi')
-if data[0] and data[1] is not None and data[1].get('Body', {}).get('Data', {}).get('Version', 0) == "12": 
-    site_data = data[1].get('Body', {}).get('Data', {}).get('Site', {})
+try: 
+    while True: 
+        write_lcd_display("SolarWeb Display", "Stats Fetching")
+        time.sleep(delay)
+        write_lcd_display("Current V:" + str(get_vsys_voltage()), "USB Power" if get_vsys_voltage() > 4.65 else "Battery Power")
+        if get_vsys_voltage() < 4.65: 
+            write_lcd_display("Estimated Percentage", str(((get_vsys_voltage() - battery_voltage_empty) / (battery_voltage_full - battery_voltage_empty)) * 100) + "%")
+            time.sleep(delay)
+        time.sleep(delay)
+        write_lcd_display("Wi-Fi Connected", ssid)
+        time.sleep(delay)
+        write_lcd_display("Wi-Fi Connected", wlan.ifconfig()[0])  # Display the IP address
+        time.sleep(delay)
+        data = get(fronius_ip + '/solar_api/v1/GetPowerFlowRealtimeData.fcgi')
+        if data[0] and data[1] is not None and data[1].get('Body', {}).get('Data', {}).get('Version', 0) == "12": 
+            site_data = data[1].get('Body', {}).get('Data', {}).get('Site', {})
 
-    dataToDisplay = {
-        "autonomy": site_data.get('rel_Autonomy', 0),
-        "power": site_data.get('P_PV', 0),
-        "grid": site_data.get('P_Grid', 0),
-        "load": site_data.get('P_Load', 0),
-        "selfConsumption": site_data.get('rel_SelfConsumption', 0)
-    }
-    for key, value in dataToDisplay.items(): 
-        write_lcd_display(str(key), str(value))
-        time.sleep(2)
-    write_lcd_display("Data Retrieved", "Successfully")
+            dataToDisplay = {
+                "Autonomy": str(site_data.get('rel_Autonomy', 0)) + "%",
+                "Current Production": str(site_data.get('P_PV', 0)) + " W",
+                "Grid Interaction": str(site_data.get('P_Grid', 0)) + " W",
+                "Consumption": str(site_data.get('P_Load', 0)) + " W",
+                "Self Consumption": str(site_data.get('rel_SelfConsumption', 0)) + "%",
+                "Battery Power": str(site_data.get('P_Akku', 0)) + " W",
+                "Generation Today": str(site_data.get('E_Day', 0)) + " kWh",
+            }
+            for key, value in dataToDisplay.items(): 
+                write_lcd_display(str(key), str(value))
+                time.sleep(delay)
+except KeyboardInterrupt: 
+    write_lcd_display("","")
