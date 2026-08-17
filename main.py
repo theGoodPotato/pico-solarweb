@@ -140,17 +140,17 @@ try:
             site_data = data[1].get('Body', {}).get('Data', {}).get('Site', {})
 
             dataToDisplay = {
-                "Autonomy": str(site_data.get('rel_Autonomy', 0)) + "%",
-                "Current Production": str(site_data.get('P_PV', 0)) + " W",
-                "Grid Interaction": str(site_data.get('P_Grid', 0)) + " W",
-                "Consumption": str(site_data.get('P_Load', 0)) + " W",
-                "Self Consumption": str(site_data.get('rel_SelfConsumption', 0)) + "%",
-                "S Battery Power": str(site_data.get('P_Akku', 0)) + " W",
-                "Generation Today": str(site_data.get('E_Day', 0)) + " kWh",
+                "Autonomy": str(site_data.get('rel_Autonomy', 0)) + "%" if site_data.get('rel_Autonomy', 0) is not None else "N/A",
+                "Current Production": str(site_data.get('P_PV', 0)) + " W" if site_data.get('P_PV', 0) is not None else "N/A",
+                "Grid Interaction": str(site_data.get('P_Grid', 0)) + " W" if site_data.get('P_Grid', 0) is not None else "N/A",
+                "Consumption": str(site_data.get('P_Load', 0)) + " W" if site_data.get('P_Load', 0) is not None else "N/A",
+                "Self Consumption": str(site_data.get('rel_SelfConsumption', 0)) + "%" if site_data.get('rel_SelfConsumption', 0) is not None else "N/A",
+                "S Battery Power": str(site_data.get('P_Akku', 0)) + " W" if site_data.get('P_Akku', 0) is not None else "N/A",
+                "Generation Today": str(site_data.get('E_Day', 0)) + " kWh" if site_data.get('E_Day', 0) is not None else "N/A",
             }
             for key, value in dataToDisplay.items(): 
-                if key == "None": 
-                    key = "N/A"
+                if value == "N/A": 
+                    continue
                 write_lcd_display(str(key), str(value))
                 time.sleep(delay)
 except KeyboardInterrupt: 
