@@ -15,19 +15,20 @@ battery_voltage_full = 1.4 * 3 # Replace with your COMBINED battery voltage
 battery_voltage_empty = 0 * 3 # Replace with your COMBINED battery voltage when empty
 
 lcd = {
-    "scl": 9,
-    "sda": 8,
-    "lcd_address": 0x3E
+    "scl": 19,
+    "sda": 18,
+    "lcd_address": 0x3E,
+    "processor": 1
 }
 
 piicodev = {
     "sda": 8,
     "scl": 9,
-    "lcd_address": 0x3C
+    "lcd_address": 0x3C,
 }
 
 # used functions and code
-i2cdisplay = I2C(0, scl=Pin(lcd["scl"]), sda=Pin(lcd["sda"]), freq=400000)
+i2cdisplay = I2C(lcd["processor"], scl=Pin(lcd["scl"]), sda=Pin(lcd["sda"]), freq=400000)
 piicodevdisplay = create_PiicoDev_SSD1306(bus=0, freq=400000,scl=Pin(piicodev["scl"]), sda=Pin(piicodev["sda"])) # type: ignore
 
 def send_cmd(cmd):
@@ -119,6 +120,12 @@ try:
     piicodevdisplay.text("Wi-Fi Connected", 0,0, 1)
     piicodevdisplay.text(wlan.ifconfig()[0], 0,10, 1)
     piicodevdisplay.show()
+except KeyboardInterrupt:
+    try: 
+        write_lcd_display("","")
+    except: 
+        from picozero import pico_led # type: ignore
+        pico_led.on()
 except: 
     from picozero import pico_led # type: ignore
     pico_led.on()
