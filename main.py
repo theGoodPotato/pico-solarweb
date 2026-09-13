@@ -1,4 +1,4 @@
-from machine import I2C, Pin, ADC # type: ignore
+from machine import I2C, Pin, ADC, reset # type: ignore
 import time
 import network # type: ignore
 import urequests
@@ -11,6 +11,7 @@ import time
 # password = 'your_PASSWORD'  # Replace with your Wi-Fi password
 fronius_ip = 'http://192.168.1.17'  # Replace with your Fronius inverter IP address
 delay = 5
+interval_to_send = 60
 battery_voltage_full = 1.4 * 3 # Replace with your COMBINED battery voltage
 battery_voltage_empty = 0 * 3 # Replace with your COMBINED battery voltage when empty
 
@@ -30,6 +31,7 @@ piicodev = {
 # used functions and code
 i2cdisplay = I2C(lcd["processor"], scl=Pin(lcd["scl"]), sda=Pin(lcd["sda"]), freq=400000)
 piicodevdisplay = create_PiicoDev_SSD1306(bus=0, freq=400000,scl=Pin(piicodev["scl"]), sda=Pin(piicodev["sda"])) # type: ignore
+cycle = [0]
 
 def send_cmd(cmd):
     i2cdisplay.writeto(lcd["lcd_address"], bytes([0x80, cmd]))
@@ -126,16 +128,24 @@ except KeyboardInterrupt:
     except: 
         from picozero import pico_led # type: ignore
         pico_led.on()
+        time.sleep(delay)
+        reset()
 except: 
     from picozero import pico_led # type: ignore
     pico_led.on()
 
 # pinging section
+
 try: 
+    write_lcd_display("SolarWeb Display", "Stats Fetching")
+    time.sleep(delay)
     while True: 
-        write_lcd_display("SolarWeb Display", "Stats Fetching")
-        time.sleep(delay)
+        while not wlan.isconnected():
+            write_lcd_display("Wi-Fi Disconnected", "Reconnecting...")
+            time.sleep(5)
+            wlan.connect(ssid, password)
         write_lcd_display("Current V:" + str(get_vsys_voltage()), "USB Power" if get_vsys_voltage() > 4.65 else "Battery Power")
+        time.sleep(delay)
         if get_vsys_voltage() < 4.65: 
             write_lcd_display("B Percentage", str(((get_vsys_voltage() - battery_voltage_empty) / (battery_voltage_full - battery_voltage_empty)) * 100) + "%")
             time.sleep(delay)
@@ -160,5 +170,10 @@ try:
                     continue
                 write_lcd_display(str(key), str(value))
                 time.sleep(delay)
+        cycle[0] += 1
+        cycle.append(dataToDisplay)
+        if cycle[0] == interval_to_send: 
+            pass # for later use, send to a server
+
 except KeyboardInterrupt: 
     write_lcd_display("","")
