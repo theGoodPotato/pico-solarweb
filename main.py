@@ -1,16 +1,17 @@
 from machine import I2C, Pin, ADC, reset # type: ignore
+import asyncio # type: ignore
 import time
 import network # type: ignore
 import urequests
 from creds import ssid, password  # Import credentials from creds.py
-from PiicoDev_SSD1306 import * # type: ignore
+from PiicoDev_SSD1306 import create_PiicoDev_SSD1306s # type: ignore
 import time
 
 # configuration
 # ssid = 'your_SSID'  # Replace with your Wi-Fi SSID
 # password = 'your_PASSWORD'  # Replace with your Wi-Fi password
 fronius_ip = 'http://192.168.1.17'  # Replace with your Fronius inverter IP address
-delay = 5
+delay = 3
 interval_to_send = 60
 battery_voltage_full = 1.4 * 3 # Replace with your COMBINED battery voltage
 battery_voltage_empty = 0 * 3 # Replace with your COMBINED battery voltage when empty
@@ -103,7 +104,7 @@ try:
     write_lcd_display("Starting up...", "Please wait")
 
     # connect to Wi-Fi
-
+    network.hostname("pico_solarweb_display")
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     wlan.connect(ssid, password)
