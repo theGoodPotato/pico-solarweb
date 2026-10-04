@@ -164,7 +164,7 @@ try:
                 "Consumption": str(site_data.get('P_Load', 0)) + " W" if site_data.get('P_Load', 0) is not None else "N/A",
                 "Self Consumption": str(site_data.get('rel_SelfConsumption', 0)) + "%" if site_data.get('rel_SelfConsumption', 0) is not None else "N/A",
                 "S Battery Power": str(site_data.get('P_Akku', 0)) + " W" if site_data.get('P_Akku', 0) is not None else "N/A",
-                "Generation Today": str(site_data.get('E_Day', 0)) + " kWh" if site_data.get('E_Day', 0) is not None else "N/A",
+                "Generation Today": str(site_data.get('E_Day', 0)) + " Wh" if site_data.get('E_Day', 0) is not None else "N/A",
             }
             for key, value in dataToDisplay.items(): 
                 if value == "N/A": 
